@@ -1,8 +1,8 @@
 import numpy as np
 import hashlib
-from src.key_generation import generate_keys
-from src.permutation import permute, inverse_permute
-from src.diffusion import diffuse, inverse_diffuse
+from key_generation import generate_keys
+from permutation import permute, inverse_permute
+from diffusion import diffuse, inverse_diffuse
 
 class EncryptedImage(np.ndarray):
     """
