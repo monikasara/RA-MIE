@@ -76,3 +76,27 @@ if uploaded_file is not None and process_btn:
             st.image(hist_buf, use_container_width=True)
             
         st.success("Analysis complete!")
+try:
+    uploaded_file = st.file_uploader(
+        "Upload medical image",
+        type=["jpg", "jpeg", "png"]
+    )
+
+    if uploaded_file is not None:
+        from PIL import Image
+
+        image = Image.open(uploaded_file).convert("RGB")
+
+        st.image(
+            image,
+            caption="Uploaded Image",
+            use_container_width=True
+        )
+
+        st.success("Image uploaded successfully.")
+
+        # Place encryption and analysis code below this point.
+
+except Exception as e:
+    st.error("An error occurred while processing the image.")
+    st.exception(e)
