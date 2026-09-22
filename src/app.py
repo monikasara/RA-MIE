@@ -1,8 +1,8 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-from cipher import encrypt, encrypt_selective, decrypt
-from metrics import calculate_entropy, calculate_npcr, calculate_uaci, calculate_correlation, plot_histogram
+from src.cipher import encrypt, encrypt_selective, decrypt
+from src.metrics import calculate_entropy, calculate_npcr, calculate_uaci, calculate_correlation, plot_histogram
 
 st.set_page_config(page_title="ChaosCrypt", layout="wide")
 
