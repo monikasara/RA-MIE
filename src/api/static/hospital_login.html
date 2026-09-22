@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RA-MIE Login</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .auth-container { max-width: 450px; margin: 4rem auto; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="card">
+            <h2 class="text-center" style="margin-bottom: 1.5rem; color: var(--primary)">Hospital Staff Portal</h2>
+            
+            <div class="tabs" style="justify-content: center;">
+                <button class="tab-btn active" onclick="switchMode('login', this)">Login</button>
+                <button class="tab-btn" onclick="switchMode('register', this)">Register</button>
+            </div>
+
+            <div id="alertBox" class="alert"></div>
+
+            <form id="loginForm" class="tab-content active" onsubmit="handleAuth(event, 'login')">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="l_user" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="l_pass" class="form-control" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Login</button>
+            </form>
+
+            <form id="registerForm" class="tab-content" onsubmit="handleAuth(event, 'register')">
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="r_role" class="form-control" required>
+                        <option value="Doctor">Doctor</option>
+                        <option value="Patient">Patient</option>
+                        <option value="Hospital">Hospital Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="r_user" class="form-control" required minlength="3">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="r_pass" class="form-control" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Hospital ID (Optional)</label>
+                    <input type="text" id="r_hosp" class="form-control">
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create Account</button>
+            </form>
+
+            <div class="text-center mt-4">
+                <a href="/" style="color: var(--text-muted); font-size: 0.9rem;">&larr; Back to Personal Mode</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchMode(mode, targetBtn=null) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            } else {
+                document.querySelector(`.tab-btn[onclick*="${mode}"]`).classList.add('active');
+            }
+            document.getElementById(mode + 'Form').classList.add('active');
+            document.getElementById('alertBox').style.display = 'none';
+        }
+
+        async function handleAuth(e, mode) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.innerText = "Please wait...";
+
+            const fd = new FormData();
+            let endpoint = '';
+            
+            if (mode === 'login') {
+                fd.append('username', document.getElementById('l_user').value);
+                fd.append('password', document.getElementById('l_pass').value);
+                endpoint = '/api/auth/login';
+            } else {
+                fd.append('username', document.getElementById('r_user').value);
+                fd.append('password', document.getElementById('r_pass').value);
+                fd.append('role', document.getElementById('r_role').value);
+                fd.append('hospital_id', document.getElementById('r_hosp').value);
+                endpoint = '/api/auth/register';
+            }
+
+            try {
+                const res = await fetch(endpoint, { method: 'POST', body: fd });
+                const data = await res.json();
+                
+                if (!res.ok) throw new Error(data.detail || "Authentication failed");
+
+                if (mode === 'login') {
+                    localStorage.setItem('hospital_token', data.access_token);
+                    window.location.href = '/static/hospital_dashboard.html';
+                } else {
+                    switchMode('login');
+                    const alert = document.getElementById('alertBox');
+                    alert.textContent = "Registration successful! You may now login.";
+                    alert.className = 'alert alert-success';
+                    alert.style.display = 'block';
+                }
+            } catch (err) {
+                const alert = document.getElementById('alertBox');
+                alert.textContent = err.message;
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = mode === 'login' ? "Login" : "Create Account";
+            }
+        }
+    </script>
+</body>
+</html>

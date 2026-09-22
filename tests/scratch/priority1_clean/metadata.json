@@ -1,0 +1,1 @@
+{"image_hash": "rNipE+brvSw/7ZH7i/mAEh8dgwJs9x6O4HLpYe1cZjE=", "level_matrix": [["LOW", "MEDIUM", "MEDIUM", "LOW"], ["MEDIUM", "MEDIUM", "MEDIUM", "LOW"], ["MEDIUM", "MEDIUM", "MEDIUM", "MEDIUM"], ["LOW", "MEDIUM", "MEDIUM", "LOW"]], "y_splits": [0, 128, 256, 384, 512], "x_splits": [0, 128, 256, 384, 512], "grid_size": [4, 4]}

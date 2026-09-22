@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RA-MIE Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .container { max-width: 1200px; }
+        .stat-card { text-align: center; padding: 1.5rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); }
+        .stat-card h2 { font-size: 2.5rem; color: var(--primary); margin: 0.5rem 0; }
+        .sidebar { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) {
+            .sidebar { grid-template-columns: 1fr; }
+            .grid-2 { grid-template-columns: 1fr !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>RA-MIE Hospital Dashboard</h1>
+                <p id="userInfo" style="color: var(--text-muted); margin-top: 0.25rem;">Loading user info...</p>
+            </div>
+            <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+
+        <div id="alertBox" class="alert"></div>
+
+        <div class="grid-2 mb-4" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="stat-card">
+                <p>Total Encrypted Images</p>
+                <h2 id="totalImages">0</h2>
+            </div>
+            <div class="stat-card">
+                <p>Average High Risk Regions</p>
+                <h2 id="avgHigh">0%</h2>
+            </div>
+            <div class="stat-card">
+                <p>Average Low Risk Regions</p>
+                <h2 id="avgLow">0%</h2>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="main-content">
+                <div class="card" id="batchSection" style="display: none;">
+                    <h3>Batch Encrypt (Doctor/Hospital only)</h3>
+                    <form id="batchForm" class="mt-4" onsubmit="handleBatch(event)">
+                        <div class="form-group">
+                            <label>Patient IDs (comma separated)</label>
+                            <input type="text" id="batchPids" class="form-control" required placeholder="e.g. 1, 2">
+                        </div>
+                        <div class="form-group">
+                            <label>Images (select multiple)</label>
+                            <input type="file" id="batchFiles" class="form-control" multiple accept="image/jpeg, image/png, image/dicom" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Passphrase</label>
+                            <input type="password" id="batchPass" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn" id="batchBtn">Encrypt Batch</button>
+                        <div class="loader mt-4" id="batchLoader"></div>
+                    </form>
+                </div>
+
+                <div class="card mt-4">
+                    <h3>Recent Patient Images</h3>
+                    <table class="mt-4">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)" style="cursor:pointer;">Patient ID ⇅</th>
+                                <th onclick="sortTable(1)" style="cursor:pointer;">Original File ⇅</th>
+                                <th onclick="sortTable(2)" style="cursor:pointer;">Timestamp ⇅</th>
+                            </tr>
+                        </thead>
+                        <tbody id="imagesTable">
+                            <tr><td colspan="3">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="side-content">
+                <div class="card">
+                    <h3>Risk Distribution</h3>
+                    <canvas id="riskChart" class="mt-4"></canvas>
+                </div>
+
+                <div class="card mt-4" style="max-height: 400px; overflow-y: auto;">
+                    <h3>Audit Log (Recent)</h3>
+                    <table class="mt-4" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditTable">
+                            <tr><td colspan="3">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('hospital_token');
+        if (!token) window.location.href = '/static/hospital_login.html';
+
+        let chartInstance = null;
+        let currentUserRole = null;
+
+        function logout() {
+            localStorage.removeItem('hospital_token');
+            window.location.href = '/static/hospital_login.html';
+        }
+
+        function sortTable(n) {
+            const table = document.getElementById("imagesTable");
+            let rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+            switching = true;
+            dir = "asc"; 
+            while (switching) {
+                switching = false;
+                rows = table.rows;
+                for (i = 0; i < (rows.length - 1); i++) {
+                    shouldSwitch = false;
+                    x = rows[i].getElementsByTagName("TD")[n];
+                    y = rows[i + 1].getElementsByTagName("TD")[n];
+                    if (!x || !y) continue;
+                    let cmpX = x.innerHTML.toLowerCase();
+                    let cmpY = y.innerHTML.toLowerCase();
+                    if (dir == "asc") {
+                        if (cmpX > cmpY) { shouldSwitch = true; break; }
+                    } else if (dir == "desc") {
+                        if (cmpX < cmpY) { shouldSwitch = true; break; }
+                    }
+                }
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount ++; 
+                } else {
+                    if (switchcount == 0 && dir == "asc") {
+                        dir = "desc";
+                        switching = true;
+                    }
+                }
+            }
+        }
+
+        function showAlert(msg, isError=true) {
+            const box = document.getElementById('alertBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+            box.className = 'alert ' + (isError ? 'alert-error' : 'alert-success');
+        }
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/dashboard/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.status === 401 || res.status === 403) return logout();
+                if (!res.ok) throw new Error("Failed to load dashboard data");
+
+                const data = await res.json();
+                
+                // User info
+                currentUserRole = data.user.role;
+                document.getElementById('userInfo').textContent = `Logged in as ${data.user.username} (${data.user.role})`;
+
+                // RBAC UI: Only Doctor, Admin, Hospital can batch encrypt. Patients cannot.
+                if (['Doctor', 'Admin', 'Hospital'].includes(currentUserRole)) {
+                    document.getElementById('batchSection').style.display = 'block';
+                }
+
+                // Stats
+                document.getElementById('totalImages').textContent = data.total_images;
+                document.getElementById('avgHigh').textContent = data.average_risk_levels.HIGH + '%';
+                document.getElementById('avgLow').textContent = data.average_risk_levels.LOW + '%';
+
+                // Chart
+                const ctx = document.getElementById('riskChart').getContext('2d');
+                if (chartInstance) chartInstance.destroy();
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+                        datasets: [{
+                            data: [
+                                data.average_risk_levels.LOW, 
+                                data.average_risk_levels.MEDIUM, 
+                                data.average_risk_levels.HIGH
+                            ],
+                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                        }]
+                    }
+                });
+
+                // Images Table
+                const tbody = document.getElementById('imagesTable');
+                tbody.innerHTML = '';
+                if (data.recent_activity.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No images found</td></tr>';
+                } else {
+                    data.recent_activity.forEach(img => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${img.patient_id}</td><td>${img.filename}</td><td>${new Date(img.timestamp).toLocaleString()}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                // Audit Log Table
+                const abody = document.getElementById('auditTable');
+                abody.innerHTML = '';
+                if (data.audit_logs && data.audit_logs.length === 0) {
+                    abody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No logs</td></tr>';
+                } else if (data.audit_logs) {
+                    data.audit_logs.forEach(log => {
+                        const tr = document.createElement('tr');
+                        const statusColor = log.status === 'SUCCESS' ? 'var(--success)' : 'var(--danger)';
+                        tr.innerHTML = `
+                            <td>${log.action}</td>
+                            <td style="color: ${statusColor}; font-weight: 500;">${log.status}</td>
+                            <td>${new Date(log.timestamp).toLocaleTimeString()}</td>
+                        `;
+                        abody.appendChild(tr);
+                    });
+                }
+
+            } catch (err) {
+                showAlert(err.message);
+            }
+        }
+
+        async function handleBatch(e) {
+            e.preventDefault();
+            const btn = document.getElementById('batchBtn');
+            const loader = document.getElementById('batchLoader');
+            
+            btn.disabled = true;
+            loader.style.display = 'block';
+            document.getElementById('alertBox').style.display = 'none';
+
+            const fd = new FormData();
+            fd.append('patient_ids', document.getElementById('batchPids').value);
+            fd.append('passphrase', document.getElementById('batchPass').value);
+            
+            const files = document.getElementById('batchFiles').files;
+            for(let i=0; i<files.length; i++) {
+                fd.append('images', files[i]);
+            }
+
+            try {
+                const res = await fetch('/api/images/hospital/batch-encrypt', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: fd
+                });
+                
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || "Batch encryption failed");
+                }
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ramie_batch_encrypted.zip`;
+                a.click();
+                
+                showAlert("Batch processed successfully!", false);
+                document.getElementById('batchForm').reset();
+                loadDashboard(); // refresh stats
+            } catch (err) {
+                showAlert(err.message);
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
