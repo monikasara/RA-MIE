@@ -6,10 +6,10 @@ import cv2
 import numpy as np
 from collections import defaultdict
 
-from cipher import encrypt, encrypt_selective, decrypt
-from adaptive_encryption import encrypt_adaptive, decrypt_adaptive
-from metrics import calculate_entropy, calculate_npcr, calculate_uaci, calculate_correlation, calculate_chi_square, plot_histogram
-from risk_analysis.risk_map import generate_risk_map
+from src.cipher import encrypt, encrypt_selective, decrypt
+from src.adaptive_encryption import encrypt_adaptive, decrypt_adaptive
+from src.metrics import calculate_entropy, calculate_npcr, calculate_uaci, calculate_correlation, calculate_chi_square, plot_histogram
+from src.risk_analysis.risk_map import generate_risk_map
 
 def find_medical_images(base_dir="sample_images"):
     supported_exts = ['*.png', '*.jpg', '*.jpeg', '*.bmp', '*.tif', '*.tiff']
