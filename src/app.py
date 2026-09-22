@@ -6,7 +6,7 @@ from src.metrics import calculate_entropy, calculate_npcr, calculate_uaci, calcu
 
 st.set_page_config(page_title="ChaosCrypt", layout="wide")
 
-st.title("ChaosCrypt: Chaotic Image Encryption")
+st.title("RA-MIE: Risk-Adaptive Medical Image Encryption")
 
 # Sidebar for inputs
 with st.sidebar:
